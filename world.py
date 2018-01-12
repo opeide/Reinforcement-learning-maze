@@ -3,7 +3,7 @@ import random as rand
 
 
 class World:
-    def __init__(self, map_matrix, start_pos, goal_pos, step_cost_type='punish', state_trans_prob=1):
+    def __init__(self, map_matrix, start_pos, goal_pos, action_set, step_cost_type='punish', state_trans_prob=1):
         if step_cost_type == 'reward':
             self.step_cost = self._step_cost_reward
         elif step_cost_type == 'punish':
@@ -20,15 +20,16 @@ class World:
         if self._is_wall(self.pos):
             raise ValueError('Start pos cannot be inside wall')
 
-        self.dirs = {'up': [-1, 0], 'down': [1, 0], 'left': [0, -1], 'right': [0, 1]}
+        self.dirs = action_set
         self.state_trans_prob = state_trans_prob
 
     def move(self, direction):
         new_pos = np.add(self.get_pos(), np.array(self.dirs[direction]))
+        cost = self.step_cost(self.get_pos(), np.array(self.dirs[direction]))
         if not self._is_wall(new_pos):
             if rand.random() < self.state_trans_prob:
                 self.set_pos(new_pos)
-        return self.step_cost(self.pos)
+        return cost
 
     def get_pos(self):
         return self.pos
@@ -42,13 +43,17 @@ class World:
     def _is_goal(self, pos):
         return np.array_equal(pos, self.goal)
 
-    def _step_cost_reward(self, pos):
-        if self._is_goal(pos):
+    def _step_cost_reward(self, pos, direction):
+        step = np.array(self.dirs[direction])
+        end = np.add(pos, step)
+        if self._is_goal(end):
             return -1
         return 0
 
-    def _step_cost_punish(self, pos):
-        if self._is_goal(pos):
+    def _step_cost_punish(self, pos, direction):
+        step = np.array(self.dirs[direction])
+        end = np.add(pos, step)
+        if self._is_goal(end):
             return 0
         return 1
 
@@ -59,7 +64,7 @@ class World:
             return 0
         if self._is_wall(pos1):
             return 0
-        pos_dir = np.add(pos0, np.adday(self.dirs[dir]))
+        pos_dir = np.add(pos0, np.array(self.dirs[dir]))
         if np.array_equal(pos0, pos1):
             if self._is_wall(pos_dir):
                 return 1
