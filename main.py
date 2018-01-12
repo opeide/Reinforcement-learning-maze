@@ -21,31 +21,34 @@ maze = World(maze_map, start, goal, actions, step_cost_type='punish', state_tran
 possible_states = [[i, j] for i in range(maze_map.shape[0]) for j in range(maze_map.shape[1]) if not maze_map[i, j]]
 
 policy_map = np.full(maze_map.shape, "X")
-value_map = np.full(maze_map.shape, 0)  #arbitrary init value
+value_map = np.full(maze_map.shape, 9.0)  #arbitrary init value
 discount = 0.9
 threshold = 0.01
 
 
 #VALUE ITERATION
-lim=1000
+lim=100
 n=0
 val_diff = 99
-while n < lim and val_diff > threshold:  # repeat until convergence of value map
+while n < lim:  # repeat until convergence of value map
     n += 1
-    value_map_old = value_map
+    value_map_old = value_map.copy()
     for state in possible_states:
         neighbour_states = [np.add(state, actions[command]) for command in actions.keys()]
         neighbour_states = [neighbour for neighbour in neighbour_states if neighbour.tolist() in possible_states]
+        neighbour_states.append(state)
         action_values = {}
         for action in actions.keys():
-            val = maze.step_cost(state, action)
-            val += discount*sum([maze.state_trans_prob_function(state, neighbour, action)*value_map_old[neighbour[0], neighbour[1]] for neighbour in neighbour_states])
+            step_cost = maze.step_cost(state, action)
+            expected_next_val = discount*sum([maze.state_trans_prob_function(state, neighbour, action)*value_map_old[neighbour[0], neighbour[1]] for neighbour in neighbour_states])
+            val = step_cost + expected_next_val
             action_values[action] = val
         best_action = min(action_values, key=action_values.get)
         policy_map[state[0], state[1]] = best_action
         value_map[state[0], state[1]] = action_values[best_action]
-    print(value_map)
-    val_diff = np.amax(np.absolute(np.subtract(value_map_old, value_map)))
+
+    diff = np.absolute(value_map_old - value_map)
+    val_diff = np.amax(diff)
     print('max cange: {}'.format(val_diff))
 
 print('finished after {} iterations'.format(n))
