@@ -23,14 +23,14 @@ possible_states = [[i, j] for i in range(maze_map.shape[0]) for j in range(maze_
 policy_map = np.full(maze_map.shape, "X")
 value_map = np.full(maze_map.shape, 9.0)  #arbitrary init value
 discount = 0.9
-threshold = 0.01
-
+threshold = 0.001
+iteration_limit = 1000
 
 #VALUE ITERATION
-lim=100
+
 n=0
-val_diff = 99
-while n < lim:  # repeat until convergence of value map
+val_change = 99
+while n < iteration_limit and val_change > threshold:  # repeat until convergence of value map
     n += 1
     value_map_old = value_map.copy()
     for state in possible_states:
@@ -48,8 +48,8 @@ while n < lim:  # repeat until convergence of value map
         value_map[state[0], state[1]] = action_values[best_action]
 
     diff = np.absolute(value_map_old - value_map)
-    val_diff = np.amax(diff)
-    print('max cange: {}'.format(val_diff))
+    val_change = np.amax(diff)
+    print('max cange: {}'.format(val_change))
 
 print('finished after {} iterations'.format(n))
 print(policy_map)
