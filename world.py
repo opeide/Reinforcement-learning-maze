@@ -15,12 +15,14 @@ class World:
         self.pos = start_pos
         self.goal = goal_pos
 
+        self.possible_states = [[i, j] for i in range(map_matrix.shape[0]) for j in range(map_matrix.shape[1]) if not map_matrix[i, j]]
+
         if self._is_wall(self.goal):
             raise ValueError('Goal cannot be inside wall')
         if self._is_wall(self.pos):
             raise ValueError('Start pos cannot be inside wall')
 
-        self.dirs = action_set
+        self.actions = action_set
         self.state_trans_prob = state_trans_prob
 
     def move(self, direction):
@@ -44,14 +46,14 @@ class World:
         return np.array_equal(pos, self.goal)
 
     def _step_cost_reward(self, pos, direction):
-        step = np.array(self.dirs[direction])
+        step = np.array(self.actions[direction])
         end = np.add(pos, step)
         if self._is_goal(end):
             return -1
         return 0
 
     def _step_cost_punish(self, pos, direction):
-        step = np.array(self.dirs[direction])
+        step = np.array(self.actions[direction])
         end = np.add(pos, step)
         if self._is_goal(end):
             return 0
@@ -64,7 +66,7 @@ class World:
             return 0
         if self._is_wall(pos1):
             return 0
-        pos_dir = np.add(pos0, np.array(self.dirs[dir]))
+        pos_dir = np.add(pos0, np.array(self.actions[dir]))
         if np.array_equal(pos0, pos1):
             if self._is_wall(pos_dir):
                 return 1
