@@ -1,0 +1,11 @@
+State transition:
+I implemented the state transition probability function the way I did, since I believe it captures all possible scenarios, and raises errors if the input makes no sense. A naive implementation might fail silently, ie. give erronous values without alerting the caller, thus not being very fault tolerant. 
+
+Mapping:
+In my implementation a 1D mapping of the value function would make plotting the value function again unecessarily complicated. I therefore chose to let the value function map a 2D position to a value. That is, it maps the state, position in maze, to a value. The state itself might be considere 1D. The same is done for the policy function. 
+
+Convergence:
+For value iteration we look at the change in the value function between iterations. When the change is below some threshold, the algorithm returns the result.
+For policy iteration, the algorithm has converged when the policy is stable, ie. no change between iterations. 
+
+

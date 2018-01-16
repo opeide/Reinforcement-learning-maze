@@ -1,32 +1,91 @@
 import numpy as np
-from world import World
 import random as rand
-import copy
+import matplotlib.pyplot as plt
 
-maze_map =  np.array(
-            [[1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 1, 0, 1, 0, 0, 1],
-            [1, 0, 1, 0, 1, 1, 0, 1],
-            [1, 0, 1, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 1, 0, 0, 1],
-            [1, 0, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1]])
+class World:
+    def __init__(self, map_matrix, start_pos, goal_pos, action_set, step_cost_type='punish', state_trans_prob=1):
+        if step_cost_type == 'reward':
+            self.step_cost = self._step_cost_reward
+        elif step_cost_type == 'punish':
+            self.step_cost = self._step_cost_punish
+        else:
+            raise ValueError('Cost type must be reward or punish')
 
-start = np.array([4,5])
-goal = np.array([6,6])
-actions = {'up': [-1, 0], 'down': [1, 0], 'left': [0, -1], 'right': [0, 1]}
-maze = World(maze_map, start, goal, actions, step_cost_type='reward', state_trans_prob=0.7)
-discount = 0.9
-threshold = 0.0001
-iteration_limit = 1000
+        self.map_mat = map_matrix
+        self.pos = start_pos
+        self.goal = goal_pos
+
+        self.possible_states = [[i, j] for i in range(map_matrix.shape[0]) for j in range(map_matrix.shape[1]) if not map_matrix[i, j]]
+
+        if self._is_wall(self.goal):
+            raise ValueError('Goal cannot be inside wall')
+        if self._is_wall(self.pos):
+            raise ValueError('Start pos cannot be inside wall')
+
+        self.actions = action_set
+        self.state_trans_prob = state_trans_prob
+
+    def move(self, direction):
+        new_pos = np.add(self.get_pos(), np.array(self.dirs[direction]))
+        cost = self.step_cost(self.get_pos(), np.array(self.dirs[direction]))
+        if not self._is_wall(new_pos):
+            if rand.random() < self.state_trans_prob:
+                self.set_pos(new_pos)
+        return cost
+
+    def get_pos(self):
+        return self.pos
+
+    def set_pos(self, new_pos):
+        self.pos = new_pos
+
+    def _is_wall(self, pos):
+        return self.map_mat[pos[0], pos[1]]
+
+    def _is_goal(self, pos):
+        return np.array_equal(pos, self.goal)
+
+    def _step_cost_reward(self, pos, direction):
+        step = np.array(self.actions[direction])
+        end = np.add(pos, step)
+        if self._is_goal(end):
+            return -1
+        return 0
+
+    def _step_cost_punish(self, pos, direction):
+        step = np.array(self.actions[direction])
+        end = np.add(pos, step)
+        if self._is_goal(end):
+            return 0
+        return 1
+
+    def state_trans_prob_function(self, pos0, pos1, dir):
+        if self._is_wall(pos0):
+            raise ValueError('pos0, starting position, cannot be inside wall')
+        if self._is_goal(pos0):
+            return 0
+        if self._is_wall(pos1):
+            return 0
+        pos_dir = np.add(pos0, np.array(self.actions[dir]))
+        if np.array_equal(pos0, pos1):
+            if self._is_wall(pos_dir):
+                return 1
+            return 1-self.state_trans_prob
+        if np.array_equal(pos_dir, pos1):
+            return self.state_trans_prob
+        return 0
+
+
+
+
+
 
 
 def value_iteration(maze, discount, threshold, iteration_limit):
     possible_states = maze.possible_states
     actions = maze.actions
-    policy_map = np.full(maze_map.shape, "X", dtype=object)
-    value_map = np.full(maze_map.shape, 9.0)  #arbitrary init value
+    policy_map = np.full(maze_map.shape, "down", dtype=object)
+    value_map = np.full(maze_map.shape, 0.0)  #arbitrary init value
 
     n=0
     val_change = 99
@@ -50,7 +109,7 @@ def value_iteration(maze, discount, threshold, iteration_limit):
         diff = np.absolute(value_map_old - value_map)
         val_change = np.amax(diff)
 
-    print('finished policy iteration after {} iterations'.format(n))
+    print('Finished value iteration after {} iterations'.format(n))
     return policy_map, value_map
 
 
@@ -72,7 +131,7 @@ def policy_iteration(maze, discount,threshold, iteration_limit):
 
 
 def policy_evaluation(maze, policy_map, discount, threshold, iteration_limit):
-    value_map = np.full(maze_map.shape, 9.0)  # arbitrary init value
+    value_map = np.full(maze_map.shape, 0.0)  # arbitrary init value
     possible_states = maze.possible_states
     n = 0
     val_change = 99
@@ -117,7 +176,54 @@ def policy_improvement(maze, policy_map, value_map, discount):
     return policy_map
 
 
-policy_ground, value_ground = value_iteration(maze, discount, threshold, iteration_limit)
 
-policy2, value2 = policy_iteration(maze, discount, threshold, iteration_limit)
+def plot_value(value_map, desc='value plot'):
+    plt.imshow(value_map, cmap='hot', interpolation='nearest')
+    plt.axis('off')
+    plt.suptitle(desc)
+    plt.show()
+
+def plot_policy(policy_map, actions, desc='policy plot'):
+    x = []
+    y = []
+    xv = []
+    yv = []
+    action_map = np.empty(policy_map.shape, list)
+    for m in range(policy_map.shape[0]):
+        for n in range(policy_map.shape[1]):
+            vect = actions[policy_map[m][n]]
+            x.append(n)
+            y.append(policy_map.shape[0]-1-m)
+            xv.append(vect[1])
+            yv.append(-vect[0])
+    plt.quiver(x,y,xv,yv)
+    plt.axis('off')
+    plt.suptitle(desc)
+    plt.show()
+
+maze_map =  np.array(
+            [[1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 1, 0, 1, 0, 0, 1],
+            [1, 0, 1, 0, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1]])
+
+start = np.array([4,5])
+goal = np.array([6,6])
+actions = {'up': [-1, 0], 'down': [1, 0], 'left': [0, -1], 'right': [0, 1]}
+maze = World(maze_map, start, goal, actions, step_cost_type='punish', state_trans_prob=0.7)
+discount = 0.9
+threshold = 0.0001
+iteration_limit = 1000
+
+
+vi_policy, vi_value = value_iteration(maze, discount, threshold, iteration_limit)
+pi_policy, pi_value = policy_iteration(maze, discount, threshold, iteration_limit)
+
+plot_value(pi_value, desc='discount {}'.format(discount))
+plot_policy(pi_policy, actions, desc='discount {}'.format(discount))
+
 
